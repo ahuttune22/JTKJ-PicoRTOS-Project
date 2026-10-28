@@ -1,0 +1,54 @@
+IMU measurements
+Sensor: ICM-42670 on the JTKJ HAT. Accelerometer in g, gyroscope in deg/s,
+temperature in C. Printed by the hat_imu_ex example, 7 samples per case.
+
+SUMMARY (min .. max of the samples below)
+flat_still     ax -0.004 .. -0.001   az +1.013 .. +1.016
+flat_wobble    ax -0.108 .. +0.141   az +0.977 .. +1.015
+tilted_still   ax +0.990 .. +0.993   az +0.145 .. +0.148
+tilted_wobble  ax +0.942 .. +1.001   az -0.050 .. +0.357
+
+DECISION
+  dot  : az > 0.7 and |ax| < 0.5   (flat: az ~ 1.0, |ax| <= 0.14)
+  dash : |ax| > 0.7                (tilted: ax >= 0.94)
+  else : ignore the press
+  The two positions stay separated by a wide margin even when wobbling.
+  The thresholds are in include/morse_config.h.
+
+RAW DATA
+
+--- 1. DOT - flat on the table, buttons side up, held still ---
+Accel: X=-0.003296, Y=-0.066406, Z=1.014282 | Gyro: X=-0.564885, Y=-0.274809, Z=0.396947| Temp: 25.66°C
+Accel: X=-0.003906, Y=-0.067017, Z=1.013794 | Gyro: X=-0.564885, Y=-0.274809, Z=0.519084| Temp: 25.66°C
+Accel: X=-0.003174, Y=-0.067383, Z=1.013306 | Gyro: X=-0.610687, Y=-0.183206, Z=0.488550| Temp: 25.65°C
+Accel: X=-0.001343, Y=-0.067139, Z=1.014038 | Gyro: X=-0.549618, Y=-0.167939, Z=0.381679| Temp: 25.64°C
+Accel: X=-0.003540, Y=-0.066772, Z=1.015503 | Gyro: X=-0.549618, Y=-0.274809, Z=0.274809| Temp: 25.66°C
+Accel: X=-0.002197, Y=-0.065308, Z=1.014038 | Gyro: X=-0.610687, Y=-0.198473, Z=0.366412| Temp: 25.70°C
+Accel: X=-0.003540, Y=-0.067383, Z=1.014160 | Gyro: X=-0.625954, Y=-0.259542, Z=0.442748| Temp: 25.71°C
+
+--- 2. DOT - flat, wobbled by hand ---
+Accel: X=0.141357, Y=-0.081177, Z=1.001343 | Gyro: X=1.526718, Y=2.167939, Z=5.419847| Temp: 26.70°C
+Accel: X=-0.108276, Y=0.045044, Z=0.996094 | Gyro: X=-5.450382, Y=8.595420, Z=-9.038168| Temp: 26.77°C
+Accel: X=0.067627, Y=-0.034790, Z=1.013184 | Gyro: X=-7.923664, Y=-51.618320, Z=-8.213740| Temp: 26.77°C
+Accel: X=0.041504, Y=-0.000122, Z=0.976807 | Gyro: X=-3.557252, Y=66.335876, Z=8.030535| Temp: 26.74°C
+Accel: X=0.037720, Y=-0.050903, Z=1.007812 | Gyro: X=1.007634, Y=-39.465649, Z=-5.083970| Temp: 26.73°C
+Accel: X=-0.031372, Y=-0.037109, Z=1.010620 | Gyro: X=-6.244275, Y=13.496183, Z=0.717557| Temp: 26.76°C
+Accel: X=-0.045044, Y=-0.053223, Z=1.015259 | Gyro: X=-2.580153, Y=0.366412, Z=0.748092| Temp: 26.81°C
+
+--- 3. DASH - rolled ~90 degrees, buttons facing left/right, held still ---
+Accel: X=0.991577, Y=0.015381, Z=0.147583 | Gyro: X=-0.656489, Y=-0.259542, Z=0.488550| Temp: 27.27°C
+Accel: X=0.991333, Y=0.015381, Z=0.146851 | Gyro: X=-0.656489, Y=-0.015267, Z=0.519084| Temp: 27.31°C
+Accel: X=0.990112, Y=0.015137, Z=0.147461 | Gyro: X=-0.778626, Y=-0.152672, Z=0.763359| Temp: 27.29°C
+Accel: X=0.992920, Y=0.013062, Z=0.144775 | Gyro: X=-0.656489, Y=-0.152672, Z=0.534351| Temp: 27.39°C
+Accel: X=0.991821, Y=0.015137, Z=0.145874 | Gyro: X=-0.717557, Y=-0.305344, Z=0.458015| Temp: 27.32°C
+Accel: X=0.991089, Y=0.013428, Z=0.145386 | Gyro: X=-0.656489, Y=-0.305344, Z=0.427481| Temp: 27.38°C
+Accel: X=0.991333, Y=0.013062, Z=0.146484 | Gyro: X=-0.702290, Y=-0.183206, Z=0.564885| Temp: 27.34°C
+
+--- 4. DASH - tilted, wobbled by hand ---
+Accel: X=0.981689, Y=0.020020, Z=0.017456 | Gyro: X=-3.053435, Y=1.679389, Z=2.381679| Temp: 27.05°C
+Accel: X=0.941772, Y=-0.005859, Z=0.357178 | Gyro: X=-6.595420, Y=-17.847328, Z=-2.625954| Temp: 27.09°C
+Accel: X=1.001465, Y=0.017090, Z=-0.049927 | Gyro: X=9.740458, Y=-30.015266, Z=0.839695| Temp: 27.12°C
+Accel: X=0.995239, Y=0.013306, Z=0.131470 | Gyro: X=-10.274809, Y=5.984733, Z=-1.038168| Temp: 27.10°C
+Accel: X=0.981079, Y=0.008545, Z=0.202637 | Gyro: X=-0.656489, Y=-2.580153, Z=0.335878| Temp: 27.08°C
+Accel: X=0.991333, Y=0.015137, Z=0.144897 | Gyro: X=-0.656489, Y=-0.427481, Z=0.442748| Temp: 27.09°C
+Accel: X=0.992188, Y=0.017212, Z=0.145264 | Gyro: X=-0.656489, Y=-0.213740, Z=0.580153| Temp: 27.09°C
