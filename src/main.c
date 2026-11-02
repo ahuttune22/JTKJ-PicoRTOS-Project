@@ -93,8 +93,10 @@ static void comm_task(void *arg) {
         /* TEMPORARY test for step 2 (remove when step 4 is done):
         if the interrupt set a flag, clear it (so the press counts once) and print
         a letter, to see in the serial monitor that the buttons work. */
-        if (buttonAEvent) { buttonAEvent = false; printf("A\n"); }
-        if (buttonBEvent) { buttonBEvent = false; printf("B\n"); }
+
+        /*------------  TEMPORARY TEST LINES   ----------*/
+        //if (buttonAEvent) { buttonAEvent = false; printf("A\n"); }
+        //if (buttonBEvent) { buttonBEvent = false; printf("B\n"); }
         vTaskDelay(pdMS_TO_TICKS(TASK_DELAY_MS));
     }
 }
