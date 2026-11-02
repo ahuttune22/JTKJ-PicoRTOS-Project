@@ -74,29 +74,66 @@ static void btn_fxn(uint gpio, uint32_t eventMask) {
     buttonBEvent = true;         /* comm_task will see this and clear it */
 }
 }
+/* Decide dot or dash from the accelerometer, using the thresholds in
+ * morse_config.h (measured values: assets/imu_measurements.txt).
+ * ax, az are in g. Returns '.', '-' or 0 when the board is in neither
+ * position (for example, halfway through a tilt). */
+static char classify_position(float ax, float az) {
+    /* Flat: gravity points mostly along z, and x is small. */
+    if (az > FLAT_Z_MIN && fabsf(ax) < FLAT_X_MAX) return '.';
+    /* Tilted onto either long edge: gravity points along x, so |ax| is about 1 g. */
+    if (fabsf(ax) > TILT_X_MIN) return '-';
+    return 0;   /* the zone between the two thresholds is ignored */
+}
 
 /* ---------- Tasks ---------- */
+/* sensor_task: waits for button A, then reads the IMU and decides the symbol.
+ * State flow: WAITING -> READ_POSITION -> SEND_SYMBOL (or back to WAITING). */
 static void sensor_task(void *arg) {
     (void)arg;
-    /* TODO step 3: init IMU. WAITING -> READ_POSITION on button A, read and classify,
-       then SEND_SYMBOL (dot/dash found) or back to WAITING */
+    float ax, ay, az, gx, gy, gz, t;   /* the sensor gives 6 values + temperature */
+
+    /* Set up the IMU once, before the loop. Same calls as the hat_imu_ex example. */
+    init_ICM42670();
+    ICM42670_start_with_default_values();
+
     for (;;) {
+        /* Button A pressed? Only legal from WAITING: then start reading. */
+        if (buttonAEvent) {
+            buttonAEvent = false;            /* clear the flag: one press counts once */
+            if (programState == WAITING) {
+                programState = READ_POSITION;
+            }
+        }
+
+        if (programState == READ_POSITION) {
+            char s = 0;
+            /* The read function returns 0 when it worked. */
+            if (ICM42670_read_sensor_data(&ax, &ay, &az, &gx, &gy, &gz, &t) == 0) {
+                s = classify_position(ax, az);
+            }
+            if (s != 0) {
+                symbolToSend = s;
+                programState = SEND_SYMBOL;  /* hand over to comm_task */
+            } else {
+                programState = WAITING;      /* no clear position or read failed: ignore */
+            }
+        }
         vTaskDelay(pdMS_TO_TICKS(TASK_DELAY_MS));
     }
 }
 
 static void comm_task(void *arg) {
     (void)arg;
-    /* TODO step 4: SEND_SYMBOL: print symbol. Button B: WAITING -> SEND_SEPARATOR,
-       print space, space, newline. Always return to WAITING */
     for (;;) {
-        /* TEMPORARY test for step 2 (remove when step 4 is done):
-        if the interrupt set a flag, clear it (so the press counts once) and print
-        a letter, to see in the serial monitor that the buttons work. */
-
-        /*------------  TEMPORARY TEST LINES   ----------*/
-        //if (buttonAEvent) { buttonAEvent = false; printf("A\n"); }
-        //if (buttonBEvent) { buttonBEvent = false; printf("B\n"); }
+        if (programState == SEND_SYMBOL) {
+            printf("%c", symbolToSend);   /* send the '.' or '-' to the PC */
+            fflush(stdout);               /* push it out now, don't wait for a newline */
+            spaceCount = 0;               /* a new symbol restarts the B-press counter */
+            programState = WAITING;
+        }
+        /* TEMPORARY step-2 test for button B, replaced in step 4 */
+        if (buttonBEvent) { buttonBEvent = false; printf("B\n"); }
         vTaskDelay(pdMS_TO_TICKS(TASK_DELAY_MS));
     }
 }
