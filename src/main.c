@@ -44,11 +44,35 @@ static volatile bool       buttonBEvent = false;  /* set in interrupt */
  * Reset to 0 whenever a symbol is sent, because then a new letter starts. */
 static uint8_t             spaceCount   = 0;
 
-/* ---------- Button interrupt: only sets flags ---------- */
+    /* ---------- Button interrupt ----------
+ 
+        Called by the Pico SDK every time a GPIO edge interrupt fires (we enabled
+    rising edges for both buttons in main()). The Pico has ONE shared callback
+    for all pins, so the parameter "gpio" tells us which button was pressed.*
+    Rule for interrupt handlers: keep them as short as possible. This one
+    only sets a flag. The real work (reading the IMU, printing) is done later
+    by the tasks, which look at the flag.*/
 static void btn_fxn(uint gpio, uint32_t eventMask) {
-    (void)gpio;
-    (void)eventMask;
-    /* TODO step 2: debounce, set buttonAEvent / buttonBEvent */
+    (void)eventMask;                 /* not used, avoids the "unused" warning /
+
+    / "static" keeps these values between calls. They remember when each
+     button last counted as a press, so that we can ignore switch bounce. */
+  static uint32_t lastA = 0, lastB = 0;
+
+    /* Milliseconds since the Pico booted. */
+    uint32_t now = to_ms_since_boot(get_absolute_time());
+
+    if (gpio == BUTTON1 && now - lastA > DEBOUNCE_MS) {
+        /* Button A (SW1): accept the press only if the last one is more
+        than DEBOUNCE_MS ago. A real button "bounces" and can create
+        several edges for one press; this removes the extra ones. */
+    lastA = now;
+    buttonAEvent = true;         /* sensor_task will see this and clear it */
+} else if (gpio == BUTTON2 && now - lastB > DEBOUNCE_MS) {
+    /* Button B (SW2): same thing, with its own timer. */
+    lastB = now;
+    buttonBEvent = true;         /* comm_task will see this and clear it */
+}
 }
 
 /* ---------- Tasks ---------- */
@@ -66,6 +90,11 @@ static void comm_task(void *arg) {
     /* TODO step 4: SEND_SYMBOL: print symbol. Button B: WAITING -> SEND_SEPARATOR,
        print space, space, newline. Always return to WAITING */
     for (;;) {
+        /* TEMPORARY test for step 2 (remove when step 4 is done):
+        if the interrupt set a flag, clear it (so the press counts once) and print
+        a letter, to see in the serial monitor that the buttons work. */
+        if (buttonAEvent) { buttonAEvent = false; printf("A\n"); }
+        if (buttonBEvent) { buttonBEvent = false; printf("B\n"); }
         vTaskDelay(pdMS_TO_TICKS(TASK_DELAY_MS));
     }
 }
