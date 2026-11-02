@@ -12,7 +12,7 @@
 #define TASK_DELAY_MS      20      /* polling period of the tasks */
 
 /* ---- Buttons ---- */
-#define DEBOUNCE_MS        200     /* ignore button edges closer than this */
+#define DEBOUNCE_MS        50     /* ignore button edges closer than this */
 
 /* ---- IMU thresholds, in g (measured values: see assets/imu_measurements.txt) ---- */
 /* Measured on 622 samples (assets/imu_measurements.txt):
