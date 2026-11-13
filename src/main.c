@@ -1,13 +1,28 @@
 /*
  * Secret Messages - Morse messenger (Tier 1)
  * Team JGLS: Aleksi Huttunen, Matias Raudasoja
- * TODO: Point distribution: Aleksi X, Matias Y
+ * 
+ * Who did what:
+ *   Aleksi: project structure (src/, include/, assets/, CMake include path),
+ *           morse_config.h, first IMU test data and initial thresholds.
+ *  
+ *   Matias: btn_fxn (button interrupt)
+ * 
+ *   Together: full IMU data collection (622 samples) and plot, confirming
+ *           the thresholds, button B separators (SEND_SEPARATOR), 
+ *           testing on the Pico (debounce tuning, Serial Client "sos" test),
+ *           classify_position, sensor_task, comm_task.
+ *           final cleanup (committed from Aleksi's account).
+ * 
+ * AI assistance (Claude) was used for code structure, comments and review.
+ *
+ * Point distribution (6 points): Aleksi 4 p, Matias 2 p
  *
  * Flat = dot '.', tilted = dash '-'. Button A sends the symbol,
  * button B adds spaces (3rd press sends '\n').
  *
- * STATUS: button A, IMU classification and USB output work.
- * Button B separators are still to do.
+ * STATUS: All features implemented: 
+ * button A sends . or -, button B sends separators.
  */
 
 #include <stdio.h>
@@ -111,9 +126,11 @@ static void sensor_task(void *arg) {
         /* Button A pressed? Only legal from WAITING: then start reading. */
         if (buttonAEvent) {
             buttonAEvent = false;            /* clear the flag: one press counts once */
-            if (programState == WAITING) {
+            taskENTER_CRITICAL();            /* check and change the state in one step, */
+            if (programState == WAITING) {   /* so comm_task can't change it in between */
                 programState = READ_POSITION;
             }
+            taskEXIT_CRITICAL();
         }
 
         if (programState == READ_POSITION) {
@@ -121,6 +138,8 @@ static void sensor_task(void *arg) {
             /* The read function returns 0 when it worked. */
             if (ICM42670_read_sensor_data(&ax, &ay, &az, &gx, &gy, &gz, &t) == 0) {
                 s = classify_position(ax, az);
+            } else {
+                printf("__IMU read failed__\n");   /* shown only after a press, so it's visible */
             }
             if (s != 0) {
                 symbolToSend = s;
@@ -133,19 +152,38 @@ static void sensor_task(void *arg) {
     }
 }
 
-/* comm_task: the "output" side. When sensor_task has chosen a symbol
- * (SEND_SYMBOL), print it to the PC over USB. Button B handling follows in step 4. */
+/* comm_task: the "output" side. Handles button B and sends everything to the
+ * PC over USB: symbols from sensor_task, and separators for button B. */
 static void comm_task(void *arg) {
     (void)arg;
     for (;;) {
+        /* Button B pressed? Always clear the flag, but only act from WAITING,
+         * so a press during another state can't fire later by mistake. */
+        if (buttonBEvent) {
+            buttonBEvent = false;
+            taskENTER_CRITICAL();
+            if (programState == WAITING) {
+                programState = SEND_SEPARATOR;
+            }
+            taskEXIT_CRITICAL();
+        }
+
         if (programState == SEND_SYMBOL) {
-            printf("%c", symbolToSend);   /* send the '.' or '-' to the PC */
-            fflush(stdout);               /* push it out now, don't wait for a newline */
+            printf("%c", symbolToSend);   /* the '.' or '-' chosen by sensor_task */
             spaceCount = 0;               /* a new symbol restarts the B-press counter */
+            fflush(stdout);
+            programState = WAITING;
+        } else if (programState == SEND_SEPARATOR) {
+            if (spaceCount < 2) {
+                printf(" ");             /* 1st press: end of letter, 2nd: end of word */
+                spaceCount++;
+            } else {
+                printf("\n");            /* 3rd press: end of message */
+                spaceCount = 0;
+            }
+            fflush(stdout);
             programState = WAITING;
         }
-        /* TEMPORARY step-2 test for button B, replaced in step 4 */
-        if (buttonBEvent) { buttonBEvent = false; printf("B\n"); }
         vTaskDelay(pdMS_TO_TICKS(TASK_DELAY_MS));
     }
 }
@@ -165,7 +203,7 @@ int main() {
 
     /* Button B: the lab used only one button. The callback is already
      * registered above, so button B only needs its own interrupt enabled
-     * (no second callback).  */
+     * (no second callback). */
     gpio_set_irq_enabled(BUTTON2, GPIO_IRQ_EDGE_RISE, true);
 
     /* Task creation check adapted from the course's template.c (there for one
@@ -173,11 +211,12 @@ int main() {
     BaseType_t sensorOk = xTaskCreate(sensor_task, "sensor", DEFAULT_STACK_SIZE, NULL, TASK_PRIORITY, NULL);
     BaseType_t commOk   = xTaskCreate(comm_task,   "comm",   DEFAULT_STACK_SIZE, NULL, TASK_PRIORITY, NULL);
     if (sensorOk != pdPASS || commOk != pdPASS) {
-        printf("Task creation failed\n");
+        printf("__Task creation failed__\n");
         return 0;
     }
 
     /* No separate usb_task / tud_task() here, unlike the plan's third task.
+     * The course spec does not require a separate USB task.
      * The output uses the standard printf over USB (stdio, enabled by
      * pico_enable_stdio_usb in CMakeLists.txt), and the Pico SDK already runs
      * the USB stack for it. A second task calling tud_task() could conflict
